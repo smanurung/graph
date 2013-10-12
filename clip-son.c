@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <dos.h>
 #include <time.h>
-//#include <unistd.h>
 
 #define	VIDEO_INT			0x10
 #define SET_MODE			0x00
@@ -83,19 +82,70 @@ int findRegion(int x, int y){
 	
 	if(y<ATAS) code |= 1;
 	else if(y>BAWAH) code |= 2;
-	else if(x>KANAN) code |= 4;
+	
+	if(x>KANAN) code |= 4;
 	else if(x<KIRI) code |= 8;
 	
 	return code;
 }
 
+int clipLine(int x1, int y1, int x2, int y2, int * x3, int * y3, int * x4, int * y4) {
+	int code1, code2, codeout;
+	int accept=0, done=0;
+		
+	code1 = findRegion(x1,y1);
+	code2 = findRegion(x2,y2);
+	do {
+		if(!(code1 | code2)) accept = done = 1; //trivial accept
+		else if(code1 & code2) done = 1; //trivial reject
+		else {
+			int x,y;
+			codeout = code1 ? code1 : code2;
+			if(codeout & 8) { //top
+				x = x1 + (x2-x1) * (ATAS-y1)/(y2-y1);
+				y = ATAS;
+			} else if(codeout & 4) { //bottom
+				x = x1 + (x2-x1) * (BAWAH-y1)/(y2-y1);
+				y = BAWAH;
+			} else if(codeout & 2) { //right
+				y = y1 + (y2-y1) * (KANAN-x1)/(x2-x1);
+				x = KANAN;
+			} else { //left
+				y = y1 + (y2-y1) * (KIRI-x1)/(x2-x1);
+				x = KIRI;
+			}
+			
+			if(codeout == code1){
+				x1 = x;
+				y1 = y;
+			} else {
+				x2 = x;
+				y2 = y;
+			}
+		}
+	} while(done == 0);
+	
+	if(accept) {
+		(*x3) = x1;
+		(*x4) = x2;
+		(*y3) = y1;
+		(*y4) = y2;
+	} else { //should never get into this
+		(*x3) = (*x4) = (*y3) = (*y4) = 0;
+	}
+	return accept;
+}
+
 void main(){
 	int color;
+	int clip1X, clip1Y, clip2X, clip2Y;
+	int end1X, end1Y, end2X, end2Y, retval;
 	
 	srand(*my_clock);
 	set_mode(VGA_256_COLOR_MODE);
 	
-	color=rand()%NUM_COLORS;
+//	color=rand()%NUM_COLORS;
+	color=175;
 	
 //	membuat view (kotak)
 	line_bresenham(KIRI,ATAS,KANAN,ATAS,color);
@@ -104,14 +154,22 @@ void main(){
 	line_bresenham(KIRI,BAWAH,KIRI,ATAS,color);
 	
 //	garis pemotong
-	line_bresenham(20,10,215,150,color);
+	clip1X = clip1Y = clip2X = clip2Y = 0;
+	
+	end1X = 130; end1Y = 30; end2X = 150; end2Y = 150;
+	line_bresenham(end1X,end1Y,end2X,end2Y,color);
+	retval = clipLine(end1X,end1Y,end2X,end2Y,&clip1X,&clip1Y,&clip2X,&clip2Y);
+	if(retval) {
+		line_bresenham(clip1X,clip1Y,clip2X,clip2Y,color+10);
+	}
+	
 	
 //	garis tak memotong
-	line_bresenham(200,15,200,170,color);
+//	line_bresenham(200,15,200,170,color);
 	
 //	trivial accept
 	
-	sleep(10);
+	sleep(2);
 	
 	set_mode(TEXT_MODE);
 	
