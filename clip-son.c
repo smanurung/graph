@@ -95,19 +95,21 @@ int clipLine(int x1, int y1, int x2, int y2, int * x3, int * y3, int * x4, int *
 		
 	code1 = findRegion(x1,y1);
 	code2 = findRegion(x2,y2);
+	
 	do {
 		if(!(code1 | code2)) accept = done = 1; //trivial accept
 		else if(code1 & code2) done = 1; //trivial reject
 		else {
 			int x,y;
+						
 			codeout = code1 ? code1 : code2;
-			if(codeout & 8) { //top
+			if(codeout & 1) { //top
 				x = x1 + (x2-x1) * (ATAS-y1)/(y2-y1);
 				y = ATAS;
-			} else if(codeout & 4) { //bottom
+			} else if(codeout & 2) { //bottom
 				x = x1 + (x2-x1) * (BAWAH-y1)/(y2-y1);
 				y = BAWAH;
-			} else if(codeout & 2) { //right
+			} else if(codeout & 4) { //right
 				y = y1 + (y2-y1) * (KANAN-x1)/(x2-x1);
 				x = KANAN;
 			} else { //left
@@ -118,9 +120,11 @@ int clipLine(int x1, int y1, int x2, int y2, int * x3, int * y3, int * x4, int *
 			if(codeout == code1){
 				x1 = x;
 				y1 = y;
+				code1 = findRegion(x1,y1);
 			} else {
 				x2 = x;
 				y2 = y;
+				code2 = findRegion(x2,y2);
 			}
 		}
 	} while(done == 0);
@@ -153,25 +157,41 @@ void main(){
 	line_bresenham(KANAN,BAWAH,KIRI,BAWAH,color);
 	line_bresenham(KIRI,BAWAH,KIRI,ATAS,color);
 	
-//	garis pemotong
+//	garis pemotong 1
 	clip1X = clip1Y = clip2X = clip2Y = 0;
 	
 	end1X = 130; end1Y = 30; end2X = 150; end2Y = 150;
 	line_bresenham(end1X,end1Y,end2X,end2Y,color);
 	retval = clipLine(end1X,end1Y,end2X,end2Y,&clip1X,&clip1Y,&clip2X,&clip2Y);
 	if(retval) {
-		line_bresenham(clip1X,clip1Y,clip2X,clip2Y,color+10);
+		line_bresenham(clip1X,clip1Y,clip2X,clip2Y,color-99);
 	}
 	
+//	garis pemotong 2
+	end1X = 50; end1Y = 90; end2X = 215; end2Y = 90;
+	line_bresenham(end1X,end1Y,end2X,end2Y,color);
+	retval = clipLine(end1X,end1Y,end2X,end2Y,&clip1X,&clip1Y,&clip2X,&clip2Y);
+	if(retval) {
+		line_bresenham(clip1X,clip1Y,clip2X,clip2Y,color-99);
+	}
 	
 //	garis tak memotong
-//	line_bresenham(200,15,200,170,color);
+	end1X = 200; end1Y = 15; end2X = 200; end2Y = 170;
+	line_bresenham(end1X,end1Y,end2X,end2Y,color);
+	retval = clipLine(end1X,end1Y,end2X,end2Y,&clip1X,&clip1Y,&clip2X,&clip2Y);
+	if(retval) {
+		line_bresenham(clip1X,clip1Y,clip2X,clip2Y,color-99);
+	}
 	
-//	trivial accept
+//	garis memotong di dalam (trivial accept)
+	end1X = KANAN; end1Y = ATAS; end2X = KIRI; end2Y = BAWAH;
+	line_bresenham(end1X,end1Y,end2X,end2Y,color);
+	retval = clipLine(end1X,end1Y,end2X,end2Y,&clip1X,&clip1Y,&clip2X,&clip2Y);
+	if(retval) {
+		line_bresenham(clip1X,clip1Y,clip2X,clip2Y,color-99);
+	}
 	
-	sleep(2);
-	
+	sleep(2);	
 	set_mode(TEXT_MODE);
-	
 	return;
 }
