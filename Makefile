@@ -1,2 +1,2 @@
 clean:
-	rm -rf *EXE *OBJ *c~
+	rm -rf *EXE *OBJ *~
