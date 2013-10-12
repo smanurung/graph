@@ -18,6 +18,12 @@
 typedef unsigned char byte;
 typedef unsigned short word;
 
+//global variables
+int ATAS = 50;
+int BAWAH = 120;
+int KIRI = 100;
+int KANAN = 170;
+
 byte *VGA=(byte *)0xA0000000L;
 word *my_clock=(word *)0x0000046C;
 
@@ -72,6 +78,17 @@ void line_bresenham(int x1, int y1, int x2, int y2, byte color){
 	}
 }
 
+int findRegion(int x, int y){
+	int code = 0;
+	
+	if(y<ATAS) code |= 1;
+	else if(y>BAWAH) code |= 2;
+	else if(x>KANAN) code |= 4;
+	else if(x<KIRI) code |= 8;
+	
+	return code;
+}
+
 void main(){
 	int color;
 	
@@ -81,16 +98,18 @@ void main(){
 	color=rand()%NUM_COLORS;
 	
 //	membuat view (kotak)
-	line_bresenham(100,50,170,50,color);
-	line_bresenham(170,50,170,120,color);
-	line_bresenham(170,120,100,120,color);
-	line_bresenham(100,120,100,50,color);
+	line_bresenham(KIRI,ATAS,KANAN,ATAS,color);
+	line_bresenham(KANAN,ATAS,KANAN,BAWAH,color);
+	line_bresenham(KANAN,BAWAH,KIRI,BAWAH,color);
+	line_bresenham(KIRI,BAWAH,KIRI,ATAS,color);
 	
 //	garis pemotong
 	line_bresenham(20,10,215,150,color);
 	
 //	garis tak memotong
 	line_bresenham(200,15,200,170,color);
+	
+//	trivial accept
 	
 	sleep(10);
 	
