@@ -25,22 +25,28 @@ typedef unsigned short word;
 typedef struct
 {
 	int up;
-	int down;
+	int bottom;
 	int right;
 	int left;
+	int depth; //urutan bidang tumpuk
 } Rectangle;
 
 //global variables
-int KOTAK_ATAS = 50;
-int KOTAK_BAWAH = 120;
-int KOTAK_KIRI = 100;
-int KOTAK_KANAN = 170;
+/*
+int ATAS_1 = 50;
+int BAWAH_1 = 120;
+int KIRI_1 = 100;
+int KANAN_1 = 170;
+*/
 
-int DEPTH_KOTAK = 1;
-int DEPTH_SEGITIGA = 2;
+/*
+int ATAS_2 = 80;
+int BAWAH_2 = 150;
+int KIRI_2 = 130;
+int KANAN_2 = 200;
+*/
 
 byte *VGA=(byte *)0xA0000000L;
-word *my_clock=(word *)0x0000046C;
 
 void set_mode(byte mode){
 	union REGS regs;
@@ -93,18 +99,19 @@ void line_bresenham(int x1, int y1, int x2, int y2, byte color){
 	}
 }
 
-int findRegion(int x, int y){
+int findRegion(Rectangle R,int x, int y){
 	int code = 0;
 	
-	if(y<KOTAK_ATAS) code |= 1;
-	else if(y>KOTAK_BAWAH) code |= 2;
+	if(y<R.up) code |= 1;
+	else if(y>R.bottom) code |= 2;
 	
-	if(x>KOTAK_KANAN) code |= 4;
-	else if(x<KOTAK_KIRI) code |= 8;
+	if(x>R.right) code |= 4;
+	else if(x<R.left) code |= 8;
 	
 	return code;
 }
 
+/*
 int clipLine(int x1, int y1, int x2, int y2, int * x3, int * y3, int * x4, int * y4) {
 	int code1, code2, codeout;
 	int accept=0, done=0;
@@ -120,17 +127,17 @@ int clipLine(int x1, int y1, int x2, int y2, int * x3, int * y3, int * x4, int *
 						
 			codeout = code1 ? code1 : code2;
 			if(codeout & 1) { //top
-				x = x1 + (x2-x1) * (KOTAK_ATAS-y1)/(y2-y1);
-				y = KOTAK_ATAS;
+				x = x1 + (x2-x1) * (ATAS_1-y1)/(y2-y1);
+				y = ATAS_1;
 			} else if(codeout & 2) { //bottom
-				x = x1 + (x2-x1) * (KOTAK_BAWAH-y1)/(y2-y1);
-				y = KOTAK_BAWAH;
+				x = x1 + (x2-x1) * (BAWAH_1-y1)/(y2-y1);
+				y = BAWAH_1;
 			} else if(codeout & 4) { //right
-				y = y1 + (y2-y1) * (KOTAK_KANAN-x1)/(x2-x1);
-				x = KOTAK_KANAN;
+				y = y1 + (y2-y1) * (KANAN_1-x1)/(x2-x1);
+				x = KANAN_1;
 			} else { //left
-				y = y1 + (y2-y1) * (KOTAK_KIRI-x1)/(x2-x1);
-				x = KOTAK_KIRI;
+				y = y1 + (y2-y1) * (KIRI_1-x1)/(x2-x1);
+				x = KIRI_1;
 			}
 			
 			if(codeout == code1){
@@ -155,30 +162,147 @@ int clipLine(int x1, int y1, int x2, int y2, int * x3, int * y3, int * x4, int *
 	}
 	return accept;
 }
+*/
 
-void main(){
+/*
+ * melakukan pengisian titik pada area
+ * minx		: nilai sumbu-x terkecil pada bidang
+ * miny		: nilai sumbu-y terkecil pada bidang
+ * maxx		: nilai sumbu-x terbesar pada bidang
+ * maxy		: nilai sumbu-y terbesar pada bidang
+ * color	: warna garis pembatas bidang
+ */
+void scanline(int minx, int miny, int maxx, int maxy, byte color) {
+	int x, y, idx, counter, xtemp;
+	int arr[500]; //maks 500 titik potong
+	int awalV = 1, firstV, lastV;
+	int fillcol = (color+200)%NUM_COLORS;
+	
+	for(y=miny;y<=maxy;y++){
+//		kosongkan array
+		idx=0;
+		for(x=minx;x<=maxx;x++){
+//			temukan seluruh titik potong
+			if(isTitik(x,y,color)){
+				int pot = isPotong(x,y,color);
+				
+				if(pot==0) {
+//					do nothing
+				} else if(pot==1){
+//					masukan ke dlm array
+					arr[idx++]=x;
+				} else if(pot==2){
+					int a = isTitik(x-1, y-1, color);
+				    int b = isTitik(x, y-1, color);
+				    int c = isTitik(x+1, y-1, color);
+					
+					if(awalV) {
+						if(a || b || c) firstV=1;
+						else firstV=0;
+						awalV=0;
+					} else {
+						if(a || b || c) lastV=1;
+						else lastV=0;
+						awalV=1;
+						
+						if (firstV == lastV) {
+//							do nothing
+						} else {
+//							masukan dalam array
+							arr[idx++]=x;
+						}
+					}
+				} else if(pot==3){
+//					do nothing
+				}
+			}
+		}
+//		warnai titik antarbatas
+		counter = 0;
+		while(counter<idx){
+			xtemp = arr[counter];
+			while(xtemp<arr[counter+1]){
+//				uji titik batas
+				if (isTitik(xtemp,y,color)) {
+//					do nothing
+				} else {
+					plot_pixel(xtemp,y,fillcol);
+				}
+				xtemp++;
+			}
+			counter += 2;
+		}
+	}
+}
+
+/*
+ * prekondisi: x,y adalah titik batas
+ */
+int isPotong(int x,int y,byte color){
+	int a = isTitik(x-1, y-1, color);
+    int b = isTitik(x, y-1, color);
+    int c = isTitik(x+1, y-1, color);
+    int d = isTitik(x-1, y, color);
+    int e = isTitik(x+1, y, color);
+	
+	if(d && e) return 3;
+	else if(d || e) return 2;
+	else if(a) {
+		if(b || c) return 0;
+		else return 1;
+	} else if(b){
+		if(c) return 0;
+		else return 1;
+	} else if(c) return 1;
+	else return 0;
+}
+
+int isTitik(int x, int y,byte col){
+	return (VGA[(y<<8)+(y<<6)+x]==col);
+}
+
+int main(void){
+	Rectangle r1,r2;
 	int color;
-	Rectangle r;
+	int colorDiff;	
 	
-	color=DEFAULT_COLOR;
-	
+	color=DEFAULT_COLOR;	
 	set_mode(VGA_256_COLOR_MODE);
 	
+//	representasi kotak
+	r1.up = 50;
+	r1.bottom = 120;
+	r1.right = 170;
+	r1.left = 100;
+	r1.depth = 1;
+	
+	r2.up = 80;
+	r2.bottom = 150;
+	r2.right = 200;
+	r2.left = 120;
+	r2.depth = 2;
+	
 //	membuat view (kotak)
-	line_bresenham(KOTAK_KIRI,KOTAK_ATAS,KOTAK_KANAN,KOTAK_ATAS,color);
-	line_bresenham(KOTAK_KANAN,KOTAK_ATAS,KOTAK_KANAN,KOTAK_BAWAH,color);
-	line_bresenham(KOTAK_KANAN,KOTAK_BAWAH,KOTAK_KIRI,KOTAK_BAWAH,color);
-	line_bresenham(KOTAK_KIRI,KOTAK_BAWAH,KOTAK_KIRI,KOTAK_ATAS,color);
+	line_bresenham(r1.left,r1.up,r1.right,r1.up,color);
+	line_bresenham(r1.right,r1.up,r1.right,r1.bottom,color);
+	line_bresenham(r1.right,r1.bottom,r1.left,r1.bottom,color);
+	line_bresenham(r1.left,r1.bottom,r1.left,r1.up,color);
 
-//	membuat view (segitiga)
-	line_bresenham(190,30,120,150,color);
-	line_bresenham(120,150,220,120,color);
-	line_bresenham(220,120,190,30,color);
+	scanline(r1.left,r1.up,r1.right,r1.bottom,color);
 
+//	membuat view (kotak)
+	color += 10;
+	line_bresenham(r2.left,r2.up,r2.right,r2.up,color);
+	line_bresenham(r2.right,r2.up,r2.right,r2.bottom,color);
+	line_bresenham(r2.right,r2.bottom,r2.left,r2.bottom,color);
+	line_bresenham(r2.left,r2.bottom,r2.left,r2.up,color);
+	
+	scanline(r2.left,r2.up,r2.right,r2.bottom,color);
+	
 //	resolusi algoritma scan line
 	
 		
 	sleep(2);	
 	set_mode(TEXT_MODE);
-	return;
+	return 0;
 }
