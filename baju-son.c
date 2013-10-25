@@ -81,11 +81,11 @@ void line_bresenham(int x1, int y1, int x2, int y2, byte color){
  * maxy		: nilai sumbu-y terbesar pada bidang
  * color	: warna garis pembatas bidang
  */
-void scanline(int minx, int miny, int maxx, int maxy, byte color) {
+void scanline(int minx, int miny, int maxx, int maxy, byte color, byte fillcol) {
 	int x, y, idx, counter, xtemp;
 	int arr[500]; //maks 500 titik potong
 	int awalV = 1, firstV, lastV;
-	int fillcol = (color+200)%NUM_COLORS;
+//	int fillcol = (color+200)%NUM_COLORS;
 	
 	for(y=miny;y<=maxy;y++){
 //		kosongkan array
@@ -172,14 +172,15 @@ int isTitik(int x, int y,byte col){
 
 int main(){
 	int x1,y1,x2,y2;
-	byte color;
+	byte color, fillcol;
 	float t1,t2;
 	word i,start;
 	
 	set_mode(VGA_256_COLOR_MODE);
 	
 //	warna bingkai
-	color=rand()%NUM_COLORS;
+	color=100;
+	fillcol = 130;
 	
 	line_bresenham(20,40,60,20,color);
 	line_bresenham(60,20,100,40,color);
@@ -196,9 +197,10 @@ int main(){
 	line_bresenham(40,60,20,40,color);
 	
 //	melakukan scanline fill
-	scanline(20,20,300,160,color);
-	
-	sleep(40);
+	scanline(20,20,300,160,color,fillcol);
+	sleep(5); fillcol = 0;
+	scanline(20,20,300,160,color,fillcol);
+	sleep(5);
 	
 	set_mode(TEXT_MODE);
 	
