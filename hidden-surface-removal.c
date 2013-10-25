@@ -261,6 +261,17 @@ int isTitik(int x, int y,byte col){
 	return (VGA[(y<<8)+(y<<6)+x]==col);
 }
 
+void drawRectangle(Rectangle r, int color)
+{
+	line_bresenham(r.left,r.up,r.right,r.up,color);
+	line_bresenham(r.right,r.up,r.right,r.bottom,color);
+	line_bresenham(r.right,r.bottom,r.left,r.bottom,color);
+	line_bresenham(r.left,r.bottom,r.left,r.up,color);
+
+	scanline(r.left,r.up,r.right,r.bottom,color);
+
+}
+
 int main(void){
 	Rectangle r1,r2;
 	int color;
@@ -282,22 +293,18 @@ int main(void){
 	r2.left = 120;
 	r2.depth = 2;
 	
-//	membuat view (kotak)
-	line_bresenham(r1.left,r1.up,r1.right,r1.up,color);
-	line_bresenham(r1.right,r1.up,r1.right,r1.bottom,color);
-	line_bresenham(r1.right,r1.bottom,r1.left,r1.bottom,color);
-	line_bresenham(r1.left,r1.bottom,r1.left,r1.up,color);
-
-	scanline(r1.left,r1.up,r1.right,r1.bottom,color);
-
-//	membuat view (kotak)
-	color += 10;
-	line_bresenham(r2.left,r2.up,r2.right,r2.up,color);
-	line_bresenham(r2.right,r2.up,r2.right,r2.bottom,color);
-	line_bresenham(r2.right,r2.bottom,r2.left,r2.bottom,color);
-	line_bresenham(r2.left,r2.bottom,r2.left,r2.up,color);
 	
-	scanline(r2.left,r2.up,r2.right,r2.bottom,color);
+//	membuat view (kotak)
+	if(r1.depth > r2.depth)
+	{
+		drawRectangle(r1,color);
+		drawRectangle(r2,color+10);
+	}
+	else
+	{
+		drawRectangle(r2,color);
+		drawRectangle(r1,color+10);
+	}
 	
 //	resolusi algoritma scan line
 	

@@ -196,7 +196,7 @@ int main(){
 	line_bresenham(40,60,20,40,color);
 	
 //	melakukan scanline fill
-	scanline(20,20,180,160,color);
+	scanline(20,20,300,160,color);
 	
 	sleep(40);
 	
