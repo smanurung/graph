@@ -169,15 +169,29 @@ int isPotong(int x,int y,byte color){
     int c = isTitik(x+1, y-1, color);
     int d = isTitik(x-1, y, color);
     int e = isTitik(x+1, y, color);
+    int f = isTitik(x-1, y+1, color);
+    int g = isTitik(x, y+1, color);
+    int h = isTitik(x+1, y+1, color);
 	
 	if(d && e) return 3;
 	else if(d || e) return 2;
 	else if(a) {
+		if(f || g || h) return 1;
+		else return 0;
+
+/*	
 		if(b || c) return 0;
 		else return 1;
+*/
+
 	} else if(b){
+		if(f || g || h) return 1;
+		else return 0;
+
+/*	
 		if(c) return 0;
 		else return 1;
+*/		
 	} else if(c) return 1;
 	else return 0;
 }
@@ -231,14 +245,21 @@ void scanline(int minx, int miny, int maxx, int maxy, byte color, Rectangle arrR
 				} else if(pot==1){
 //					masukan ke dlm array
 					arr[idx++]=x;
-				} else if(pot==2){
+				} else if(pot==2){					
 					int a = isTitik(x-1, y-1, color);
 				    int b = isTitik(x, y-1, color);
 				    int c = isTitik(x+1, y-1, color);
 					
+//					SEMANTIC! masukan saja byk titik
+					arr[idx++] = x;
+					
 					if(awalV) {
 						if(a || b || c) firstV=1;
 						else firstV=0;
+						
+//						simpan titik awal dari garis horizontal
+//						arr[idx++] = x;
+						
 						awalV=0;
 					} else {
 						if(a || b || c) lastV=1;
@@ -279,6 +300,7 @@ void scanline(int minx, int miny, int maxx, int maxy, byte color, Rectangle arrR
 				}
 				else if((isInside(arrR[0],xtemp,y)) || (isInside(arrR[1],xtemp,y)))
 				{
+//					if(isBatas(arrR[0],xtemp,y) || (isBatas(arrR[1],xtemp,y)))
 					if(isTitik(xtemp,y,color))
 					{
 						//do nothing
@@ -309,13 +331,13 @@ int main(void){
 	r1.bottom = 120;
 	r1.right = 170;
 	r1.left = 100;
-	r1.depth = 2;
+	r1.depth = 1;
 	
 	r2.up = 80;
 	r2.bottom = 150;
 	r2.right = 200;
 	r2.left = 120;
-	r2.depth = 1;
+	r2.depth = 2;
 	
 	
 //	membuat view (kotak)
@@ -332,11 +354,10 @@ int main(void){
 	
 	arr[0] = r1;
 	arr[1] = r2;
-	printf("%d\n",length(arr));
 //	resolusi algoritma scan line
 	scanline(r1.left, r1.up, r2.right, r2.bottom, LINE_COLOR, arr);
 		
-	sleep(5);	
+	sleep(5);
 	set_mode(TEXT_MODE);
 	return 0;
 }
