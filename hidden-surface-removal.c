@@ -15,9 +15,12 @@
 #define	SCREEN_WIDTH		320
 #define SCREEN_HEIGHT		200
 #define NUM_COLORS			256
-#define DEFAULT_COLOR		175
+
+#define LINE_COLOR			2
+#define SCAN_COLOR			75
 
 #define sgn(x) ((x<0)?-1:((x>0)?1:0))
+#define length(x) (sizeof(x)/sizeof(x[0]))
 
 typedef unsigned char byte;
 typedef unsigned short word;
@@ -28,7 +31,7 @@ typedef struct
 	int bottom;
 	int right;
 	int left;
-	int depth; //urutan bidang tumpuk
+	int depth; 			//urutan bidang tumpuk
 } Rectangle;
 
 //global variables
@@ -112,57 +115,89 @@ int findRegion(Rectangle R,int x, int y){
 }
 
 /*
-int clipLine(int x1, int y1, int x2, int y2, int * x3, int * y3, int * x4, int * y4) {
-	int code1, code2, codeout;
-	int accept=0, done=0;
-		
-	code1 = findRegion(x1,y1);
-	code2 = findRegion(x2,y2);
-	
-	do {
-		if(!(code1 | code2)) accept = done = 1; //trivial accept
-		else if(code1 & code2) done = 1; //trivial reject
-		else {
-			int x,y;
-						
-			codeout = code1 ? code1 : code2;
-			if(codeout & 1) { //top
-				x = x1 + (x2-x1) * (ATAS_1-y1)/(y2-y1);
-				y = ATAS_1;
-			} else if(codeout & 2) { //bottom
-				x = x1 + (x2-x1) * (BAWAH_1-y1)/(y2-y1);
-				y = BAWAH_1;
-			} else if(codeout & 4) { //right
-				y = y1 + (y2-y1) * (KANAN_1-x1)/(x2-x1);
-				x = KANAN_1;
-			} else { //left
-				y = y1 + (y2-y1) * (KIRI_1-x1)/(x2-x1);
-				x = KIRI_1;
-			}
-			
-			if(codeout == code1){
-				x1 = x;
-				y1 = y;
-				code1 = findRegion(x1,y1);
-			} else {
-				x2 = x;
-				y2 = y;
-				code2 = findRegion(x2,y2);
-			}
-		}
-	} while(done == 0);
-	
-	if(accept) {
-		(*x3) = x1;
-		(*x4) = x2;
-		(*y3) = y1;
-		(*y4) = y2;
-	} else { //should never get into this
-		(*x3) = (*x4) = (*y3) = (*y4) = 0;
+ * 1 jika (x,y) berada pada garis batas r
+ */
+int isBatas(Rectangle r, int x, int y)
+{
+//	batas kiri
+	if((x == r.left) || ((x == r.right)))
+	{
+		return ((y>=r.up) && (y<=r.bottom));
 	}
-	return accept;
+	else if((y == r.up) || (y == r.bottom))
+	{
+		return ((x>=r.left) && (x<=r.right));
+	}
+	else return 0;
 }
-*/
+
+/*
+ * prekondisi: r tidak kosong
+ * mencari Rectangle dengan prioritas tertinggi (nilai depth paling rendah)
+ */
+Rectangle getHighestPriority(Rectangle r[2])
+{
+	int i;
+	Rectangle maxR;
+	
+	maxR = r[0];
+	for(i=1;i<2;i++)
+	{
+		if(r[i].depth < maxR.depth)
+		{
+			maxR = r[i];
+		}
+	}
+	return maxR;
+}
+
+int isInside(Rectangle r, int x, int y)
+{
+	return (((x>=r.left)&&(x<=r.right)) && ((y>=r.up)&&(y<=r.bottom)));
+}
+
+/*
+ * prekondisi: x,y adalah titik batas
+ * 3 jika (x,y) merupakan garis lurus horizontal
+ * 2 jika (x,y) blm jelas titik potong atau bukan
+ * 1 jika (x,y) titik potong
+ * 0 jika (x,y) bukan titik potong
+ */
+int isPotong(int x,int y,byte color){
+	int a = isTitik(x-1, y-1, color);
+    int b = isTitik(x, y-1, color);
+    int c = isTitik(x+1, y-1, color);
+    int d = isTitik(x-1, y, color);
+    int e = isTitik(x+1, y, color);
+	
+	if(d && e) return 3;
+	else if(d || e) return 2;
+	else if(a) {
+		if(b || c) return 0;
+		else return 1;
+	} else if(b){
+		if(c) return 0;
+		else return 1;
+	} else if(c) return 1;
+	else return 0;
+}
+
+/*
+ * menentukan apakah (x,y) termasuk titik batas bidang
+ */
+int isTitik(int x, int y,byte col){
+	return (VGA[(y<<8)+(y<<6)+x]==col);
+}
+
+void drawRectangle(Rectangle r)
+{
+	line_bresenham(r.left,r.up,r.right,r.up,LINE_COLOR);
+	line_bresenham(r.right,r.up,r.right,r.bottom,LINE_COLOR);
+	line_bresenham(r.right,r.bottom,r.left,r.bottom,LINE_COLOR);
+	line_bresenham(r.left,r.bottom,r.left,r.up,LINE_COLOR);
+
+//	scanline(r.left,r.up,r.right,r.bottom,LINE_COLOR);
+}
 
 /*
  * melakukan pengisian titik pada area
@@ -172,13 +207,18 @@ int clipLine(int x1, int y1, int x2, int y2, int * x3, int * y3, int * x4, int *
  * maxy		: nilai sumbu-y terbesar pada bidang
  * color	: warna garis pembatas bidang
  */
-void scanline(int minx, int miny, int maxx, int maxy, byte color) {
+void scanline(int minx, int miny, int maxx, int maxy, byte color, Rectangle arrR[2]) {
 	int x, y, idx, counter, xtemp;
 	int arr[500]; //maks 500 titik potong
 	int awalV = 1, firstV, lastV;
-	int fillcol = (color+200)%NUM_COLORS;
+	Rectangle highR;
+	
+//	pengaturan warna
+	int fillcol = SCAN_COLOR;
+	color = LINE_COLOR;
 	
 	for(y=miny;y<=maxy;y++){
+//		printf("scan baris %d\n",y);
 //		kosongkan array
 		idx=0;
 		for(x=minx;x<=maxx;x++){
@@ -222,62 +262,46 @@ void scanline(int minx, int miny, int maxx, int maxy, byte color) {
 		while(counter<idx){
 			xtemp = arr[counter];
 			while(xtemp<arr[counter+1]){
-//				uji titik batas
-				if (isTitik(xtemp,y,color)) {
-//					do nothing
-				} else {
-					plot_pixel(xtemp,y,fillcol);
+
+//				uji  kepemilikan bangun
+				if((isInside(arrR[0],xtemp,y))&&(isInside(arrR[1],xtemp,y)))
+				{
+//					mencari prioritas tertinggi dari seluruh bangun yang ada (bertindihan)
+					highR = getHighestPriority(arrR);
+					if(isBatas(highR,xtemp,y))
+					{
+						//do nothing
+					}
+					else
+					{
+						plot_pixel(xtemp,y,fillcol);
+					}
+				}
+				else if((isInside(arrR[0],xtemp,y)) || (isInside(arrR[1],xtemp,y)))
+				{
+					if(isTitik(xtemp,y,color))
+					{
+						//do nothing
+					}
+					else
+					{
+						plot_pixel(xtemp,y,fillcol);
+					}
 				}
 				xtemp++;
+				
 			}
-			counter += 2;
+			counter += 1;
 		}
 	}
 }
 
-/*
- * prekondisi: x,y adalah titik batas
- */
-int isPotong(int x,int y,byte color){
-	int a = isTitik(x-1, y-1, color);
-    int b = isTitik(x, y-1, color);
-    int c = isTitik(x+1, y-1, color);
-    int d = isTitik(x-1, y, color);
-    int e = isTitik(x+1, y, color);
-	
-	if(d && e) return 3;
-	else if(d || e) return 2;
-	else if(a) {
-		if(b || c) return 0;
-		else return 1;
-	} else if(b){
-		if(c) return 0;
-		else return 1;
-	} else if(c) return 1;
-	else return 0;
-}
-
-int isTitik(int x, int y,byte col){
-	return (VGA[(y<<8)+(y<<6)+x]==col);
-}
-
-void drawRectangle(Rectangle r, int color)
-{
-	line_bresenham(r.left,r.up,r.right,r.up,color);
-	line_bresenham(r.right,r.up,r.right,r.bottom,color);
-	line_bresenham(r.right,r.bottom,r.left,r.bottom,color);
-	line_bresenham(r.left,r.bottom,r.left,r.up,color);
-
-	scanline(r.left,r.up,r.right,r.bottom,color);
-
-}
-
 int main(void){
 	Rectangle r1,r2;
+	Rectangle arr[2];
 	int color;
-	int colorDiff;	
+	int colorDiff;
 	
-	color=DEFAULT_COLOR;	
 	set_mode(VGA_256_COLOR_MODE);
 	
 //	representasi kotak
@@ -285,31 +309,34 @@ int main(void){
 	r1.bottom = 120;
 	r1.right = 170;
 	r1.left = 100;
-	r1.depth = 1;
+	r1.depth = 2;
 	
 	r2.up = 80;
 	r2.bottom = 150;
 	r2.right = 200;
 	r2.left = 120;
-	r2.depth = 2;
+	r2.depth = 1;
 	
 	
 //	membuat view (kotak)
 	if(r1.depth > r2.depth)
 	{
-		drawRectangle(r1,color);
-		drawRectangle(r2,color+10);
+		drawRectangle(r1);
+		drawRectangle(r2);
 	}
 	else
 	{
-		drawRectangle(r2,color);
-		drawRectangle(r1,color+10);
+		drawRectangle(r2);
+		drawRectangle(r1);
 	}
 	
+	arr[0] = r1;
+	arr[1] = r2;
+	printf("%d\n",length(arr));
 //	resolusi algoritma scan line
-	
+	scanline(r1.left, r1.up, r2.right, r2.bottom, LINE_COLOR, arr);
 		
-	sleep(2);	
+	sleep(5);	
 	set_mode(TEXT_MODE);
 	return 0;
 }

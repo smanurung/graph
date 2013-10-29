@@ -80,6 +80,7 @@ void line_bresenham(int x1, int y1, int x2, int y2, byte color){
  * maxx		: nilai sumbu-x terbesar pada bidang
  * maxy		: nilai sumbu-y terbesar pada bidang
  * color	: warna garis pembatas bidang
+ * fillcol	: warna isi pada bidang
  */
 void scanline(int minx, int miny, int maxx, int maxy, byte color, byte fillcol) {
 	int x, y, idx, counter, xtemp;
@@ -198,9 +199,9 @@ int main(){
 	
 //	melakukan scanline fill
 	scanline(20,20,300,160,color,fillcol);
-	sleep(5); fillcol = 0;
+	sleep(1); fillcol = 0;
 	scanline(20,20,300,160,color,fillcol);
-	sleep(5);
+	sleep(2);
 	
 	set_mode(TEXT_MODE);
 	
